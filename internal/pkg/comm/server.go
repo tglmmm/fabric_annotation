@@ -69,6 +69,7 @@ func NewGRPCServerFromListener(listener net.Listener, serverConfig ServerConfig)
 	var serverOpts []grpc.ServerOption
 
 	secureConfig := serverConfig.SecOpts
+
 	// 如果开启TLS认证
 	if secureConfig.UseTLS {
 		// both key and cert are required
@@ -85,7 +86,7 @@ func NewGRPCServerFromListener(listener net.Listener, serverConfig ServerConfig)
 			grpcServer.serverCertificate.Store(cert)
 
 			// set up our TLS config
-			// 设置 TLS配置
+			// 设置 TLS 支持的加密套件列表
 			if len(secureConfig.CipherSuites) == 0 {
 				// 使用默认的加密套件
 				secureConfig.CipherSuites = DefaultTLSCipherSuites

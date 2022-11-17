@@ -62,11 +62,12 @@ func (msp *bccspmsp) validateCAIdentity(id *identity) error {
 	if err != nil {
 		return errors.WithMessage(err, "could not obtain certification chain")
 	}
+	// 只有根证书的情况
 	if len(validationChain) == 1 {
 		// validationChain[0] is the root CA certificate
 		return nil
 	}
-
+	// 主要验证证书是否被撤销
 	return msp.validateIdentityAgainstChain(id, validationChain)
 }
 
@@ -93,7 +94,7 @@ func (msp *bccspmsp) validateIdentityAgainstChain(id *identity, validationChain 
 
 func (msp *bccspmsp) validateCertAgainstChain(cert *x509.Certificate, validationChain []*x509.Certificate) error {
 	// here we know that the identity is valid; now we have to check whether it has been revoked
-
+	// 到这里我们已经确定身份信息是有效的， 现在需要确定的是证书是否被撤销了
 	// identify the SKI of the CA that signed this cert
 	SKI, err := getSubjectKeyIdentifierFromCert(validationChain[1])
 	if err != nil {
@@ -102,6 +103,8 @@ func (msp *bccspmsp) validateCertAgainstChain(cert *x509.Certificate, validation
 
 	// check whether one of the CRLs we have has this cert's
 	// SKI as its AuthorityKeyIdentifier
+	// 检查CRLS是否存在这个证书
+	// SKI作为检查的标识
 	for _, crl := range msp.CRL {
 		aki, err := getAuthorityKeyIdentifierFromCrl(crl)
 		if err != nil {
@@ -109,15 +112,18 @@ func (msp *bccspmsp) validateCertAgainstChain(cert *x509.Certificate, validation
 		}
 
 		// check if the SKI of the cert that signed us matches the AKI of any of the CRLs
+		// 如果 签署证书的SKI与CRL中的人格AKI相匹配
 		if bytes.Equal(aki, SKI) {
 			// we have a CRL, check whether the serial number is revoked
 			for _, rc := range crl.TBSCertList.RevokedCertificates {
+				// cmp == 0 , x == y
 				if rc.SerialNumber.Cmp(cert.SerialNumber) == 0 {
 					// We have found a CRL whose AKI matches the SKI of
 					// the CA (root or intermediate) that signed the
 					// certificate that is under validation. As a
 					// precaution, we verify that said CA is also the
 					// signer of this CRL.
+					// 检查 CRL签名
 					err = validationChain[1].CheckCRLSignature(crl)
 					if err != nil {
 						// the CA cert that signed the certificate
@@ -345,6 +351,7 @@ func getAuthorityKeyIdentifierFromCrl(crl *pkix.CertificateList) ([]byte, error)
 
 // getSubjectKeyIdentifierFromCert returns the Subject Key Identifier for the supplied certificate
 // Subject Key Identifier is an identifier of the public key of this certificate
+// 密钥标识符
 func getSubjectKeyIdentifierFromCert(cert *x509.Certificate) ([]byte, error) {
 	var SKI []byte
 

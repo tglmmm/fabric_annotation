@@ -92,7 +92,7 @@ func Main() {
 	// 日志格式化
 	initializeLogging()
 	// 格式化输出配置信息
-	prettyPrintStruct(conf)
+	//prettyPrintStruct(conf)
 	// BCCSP 实例，加载一系列默认加密，解密，签名验签函数
 	// BCCSP当前并没有指定 keystorePath
 	cryptoProvider := factory.GetDefault()
@@ -423,7 +423,6 @@ func reuseListener(conf *localconfig.TopLevel) bool {
 		if !conf.General.TLS.Enabled {
 			logger.Panicf("TLS is required for running ordering nodes of cluster type.")
 		}
-		fmt.Println(!conf.General.TLS.Enabled)
 		return true
 	}
 
@@ -590,7 +589,6 @@ func initializeClusterClientConfig(conf *localconfig.TopLevel) (comm.ClientConfi
 	}
 
 	reuseGrpcListener := reuseListener(conf)
-
 	certFile := conf.General.Cluster.ClientCertificate
 	keyFile := conf.General.Cluster.ClientPrivateKey
 	if certFile == "" && keyFile == "" {
@@ -823,6 +821,7 @@ func consensusType(genesisBlock *cb.Block, bccsp bccsp.BCCSP) string {
 	return ordConf.ConsensusType()
 }
 
+// 初始化 GRPC 服务
 func initializeGrpcServer(conf *localconfig.TopLevel, serverConfig comm.ServerConfig) *comm.GRPCServer {
 	// 启用socket监听
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.General.ListenAddress, conf.General.ListenPort))
@@ -918,6 +917,7 @@ func initializeMultichannelRegistrar(
 	return registrar
 }
 
+// 初始化 ETCDRAFT 共识
 func initializeEtcdraftConsenter(
 	consenters map[string]consensus.Consenter,
 	conf *localconfig.TopLevel,
@@ -945,10 +945,10 @@ func initializeEtcdraftConsenter(
 
 	icr := onboarding.NewInactiveChainReplicator(ri, getConfigBlock, ri.RegisterChain, conf.General.Cluster.ReplicationBackgroundRefreshInterval)
 
-	// Use the inactiveChainReplicator as a channel lister, since it has knowledge
-	// of all inactive chains.
-	// This is to prevent us pulling the entire system chain when attempting to enumerate
-	// the channels in the system.
+	// Use the inactiveChainReplicator as a channel lister, since it has knowledge of all inactive chains.
+	// This is to prevent us pulling the entire system chain when attempting to enumerate the channels in the system.
+	// 使用 inactiveChainReplicator 作为通道的一个监听者，因为他知道所有的未活跃的链
+	// 这是为了防止我们在试图枚举系统中的通道时拉出整个系统链
 	ri.ChannelLister = icr
 
 	go icr.Run()

@@ -32,11 +32,13 @@ func New(csp bccsp.BCCSP, key bccsp.Key) (crypto.Signer, error) {
 	if key == nil {
 		return nil, errors.New("key must be different from nil.")
 	}
+	// 对称加密
 	if key.Symmetric() {
 		return nil, errors.New("key must be asymmetric.")
 	}
 
 	// Marshall the bccsp public key as a crypto.PublicKey
+	//
 	pub, err := key.PublicKey()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed getting public key")

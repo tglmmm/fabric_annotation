@@ -29,6 +29,8 @@ func ExtractRemoteAddress(ctx context.Context) string {
 
 // ExtractCertificateHashFromContext extracts the hash of the certificate from the given context.
 // If the certificate isn't present, nil is returned
+// 提取证书hash在给定的上下文中
+// 如果证书不存在返回nil
 func ExtractCertificateHashFromContext(ctx context.Context) []byte {
 	rawCert := ExtractRawCertificateFromContext(ctx)
 	if len(rawCert) == 0 {
@@ -65,6 +67,7 @@ func ExtractCertificateFromContext(ctx context.Context) *x509.Certificate {
 
 // ExtractRawCertificateFromContext returns the raw TLS certificate (if applicable)
 // from the given context of a gRPC stream
+// 返回TLS证书 ，从RPC 流的上下文中
 func ExtractRawCertificateFromContext(ctx context.Context) []byte {
 	cert := ExtractCertificateFromContext(ctx)
 	if cert == nil {

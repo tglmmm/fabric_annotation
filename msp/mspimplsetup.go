@@ -150,6 +150,7 @@ func (msp *bccspmsp) setupCAs(conf *m.FabricMSPConfig) error {
 	}
 
 	// make and fill the set of intermediate certs (if present)
+	// 制作并填写中间证书如果有的话
 	msp.intermediateCerts = make([]Identity, len(conf.IntermediateCerts))
 	for i, trustedCert := range conf.IntermediateCerts {
 		id, _, err := msp.getIdentityFromConf(trustedCert)
@@ -233,6 +234,7 @@ func (msp *bccspmsp) setupCRLs(conf *m.FabricMSPConfig) error {
 		}
 
 		// Massage the ECDSA signature values
+		// CRL签名是否是 ECDSA签名算法
 		if isECDSASignatureAlgorithm(crl.SignatureAlgorithm.Algorithm) {
 			r, s, err := utils.UnmarshalECDSASignature(crl.SignatureValue.RightAlign())
 			if err != nil {
@@ -258,21 +260,23 @@ func (msp *bccspmsp) setupCRLs(conf *m.FabricMSPConfig) error {
 
 func (msp *bccspmsp) finalizeSetupCAs() error {
 	// ensure that our CAs are properly formed and that they are valid
+	// 确定CA 机构是否成立且有效
 	for _, id := range append(append([]Identity{}, msp.rootCerts...), msp.intermediateCerts...) {
 		if !id.(*identity).cert.IsCA {
 			return errors.Errorf("CA Certificate did not have the CA attribute, (SN: %x)", id.(*identity).cert.SerialNumber)
 		}
+		// SKI
 		if _, err := getSubjectKeyIdentifierFromCert(id.(*identity).cert); err != nil {
 			return errors.WithMessagef(err, "CA Certificate problem with Subject Key Identifier extension, (SN: %x)", id.(*identity).cert.SerialNumber)
 		}
-
+		// 验证CA证书合法性， 是否是一个CA证书， 是否被撤销。。。
 		if err := msp.validateCAIdentity(id.(*identity)); err != nil {
 			return errors.WithMessagef(err, "CA Certificate is not valid, (SN: %s)", id.(*identity).cert.SerialNumber)
 		}
 	}
 
-	// populate certificationTreeInternalNodesMap to mark the internal nodes of the
-	// certification tree
+	// populate certificationTreeInternalNodesMap to mark the internal nodes of the certification tree
+	// 填充 certificationTreeInternalNodesMap 去标记内部节点的认证树
 	msp.certificationTreeInternalNodesMap = make(map[string]bool)
 	for _, id := range append([]Identity{}, msp.intermediateCerts...) {
 		chain, err := msp.getUniqueValidationChain(id.(*identity).cert, msp.getValidityOptsForCert(id.(*identity).cert))
@@ -282,6 +286,7 @@ func (msp *bccspmsp) finalizeSetupCAs() error {
 
 		// Recall chain[0] is id.(*identity).id so it does not count as a parent
 		for i := 1; i < len(chain); i++ {
+			//fmt.Println("certificationTreeInternalNodesMap", chain[i].Raw)
 			msp.certificationTreeInternalNodesMap[string(chain[i].Raw)] = true
 		}
 	}

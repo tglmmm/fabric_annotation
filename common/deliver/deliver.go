@@ -37,17 +37,21 @@ type ChainManager interface {
 //go:generate counterfeiter -o mock/chain.go -fake-name Chain . Chain
 
 // Chain encapsulates chain operations and data.
+// 封装链的配置选项和数据
 type Chain interface {
 	// Sequence returns the current config sequence number, can be used to detect config changes
+	// 返回当前配置区块的序列号， 可以被用来发现配置的变化
 	Sequence() uint64
 
 	// PolicyManager returns the current policy manager as specified by the chain configuration
+	// 返回 当前链配置指定的策略管理器
 	PolicyManager() policies.Manager
 
 	// Reader returns the chain Reader for the chain
 	Reader() blockledger.Reader
 
 	// Errored returns a channel which closes when the backing consenter has errored
+	// 返回一个通道，当共识对象出现错误时候关闭
 	Errored() <-chan struct{}
 }
 
@@ -55,12 +59,13 @@ type Chain interface {
 
 // PolicyChecker checks the envelope against the policy logic supplied by the
 // function.
+// 根据提供的策略逻辑检查 envelope
 type PolicyChecker interface {
 	CheckPolicy(envelope *cb.Envelope, channelID string) error
 }
 
-// The PolicyCheckerFunc is an adapter that allows the use of an ordinary
-// function as a PolicyChecker.
+// The PolicyCheckerFunc is an adapter that allows the use of an ordinary function as a PolicyChecker.
+// 一个适配器允许一个普通的函数作为策略检查器
 type PolicyCheckerFunc func(envelope *cb.Envelope, channelID string) error
 
 // CheckPolicy calls pcf(envelope, channelID)
@@ -71,12 +76,14 @@ func (pcf PolicyCheckerFunc) CheckPolicy(envelope *cb.Envelope, channelID string
 //go:generate counterfeiter -o mock/inspector.go -fake-name Inspector . Inspector
 
 // Inspector verifies an appropriate binding between the message and the context.
+// 检查一个合适绑定 通过在消息和上下文
 type Inspector interface {
 	Inspect(context.Context, proto.Message) error
 }
 
 // The InspectorFunc is an adapter that allows the use of an ordinary
 // function as an Inspector.
+// 一个适配器 将一个普通函数当作 Inspector使用，
 type InspectorFunc func(context.Context, proto.Message) error
 
 // Inspect calls inspector(ctx, p)

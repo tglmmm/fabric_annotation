@@ -57,6 +57,7 @@ func ConfigUpdateEnvelopeAsSignedData(ce *common.ConfigUpdateEnvelope) ([]*Signe
 
 // EnvelopeAsSignedData returns the signatures for the Envelope as SignedData
 // slice of length 1 or an error indicating why this was not possible.
+// 返回envelope的签名信息是一个长度为1的切片或者一个错误
 func EnvelopeAsSignedData(env *common.Envelope) ([]*SignedData, error) {
 	if env == nil {
 		return nil, fmt.Errorf("No signatures for nil Envelope")

@@ -32,7 +32,6 @@ import (
 // 也可以将其设置为只读
 func NewFileBasedKeyStore(pwd []byte, path string, readOnly bool) (bccsp.KeyStore, error) {
 	ks := &fileBasedKeyStore{}
-	fmt.Println("初始化 keystore")
 	return ks, ks.Init(pwd, path, readOnly)
 }
 

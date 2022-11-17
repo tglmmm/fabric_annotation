@@ -65,9 +65,11 @@ type ServerConfig struct {
 	KaOpts KeepaliveOptions
 	// StreamInterceptors specifies a list of interceptors to apply to
 	// streaming RPCs.  They are executed in order.
+	// 给 RPC 流指定一个拦截器列表 ，他们是按顺序执行的
 	StreamInterceptors []grpc.StreamServerInterceptor
 	// UnaryInterceptors specifies a list of interceptors to apply to unary
 	// RPCs.  They are executed in order.
+	// 给 一元的 RPC指定拦截器
 	UnaryInterceptors []grpc.UnaryServerInterceptor
 	// Logger specifies the logger the server will use
 	Logger *flogging.FabricLogger
@@ -181,6 +183,7 @@ type SecureOptions struct {
 	// Whether or not TLS client must present certificates for authentication
 	RequireClientCert bool
 	// CipherSuites is a list of supported cipher suites for TLS
+	// TLS 支持的加密套件列表
 	CipherSuites []uint16
 	// TimeShift makes TLS handshakes time sampling shift to the past by a given duration
 	// 使TLS握手的时间移动到过去某个给定的时间价格
