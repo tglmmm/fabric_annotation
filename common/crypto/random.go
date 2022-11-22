@@ -28,6 +28,7 @@ const (
 )
 
 // GetRandomBytes returns len random looking bytes
+//
 func GetRandomBytes(len int) ([]byte, error) {
 	key := make([]byte, len)
 

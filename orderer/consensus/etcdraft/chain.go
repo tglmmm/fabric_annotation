@@ -72,6 +72,7 @@ type Configurator interface {
 //go:generate counterfeiter -o mocks/mock_rpc.go . RPC
 
 // RPC is used to mock the transport layer in tests.
+// 用于在测试中模拟传输层
 type RPC interface {
 	SendConsensus(dest uint64, msg *orderer.ConsensusRequest) error
 	SendSubmit(dest uint64, request *orderer.SubmitRequest, report func(err error)) error
@@ -141,6 +142,8 @@ type gc struct {
 }
 
 // Chain implements consensus.Chain interface.
+// Chain 实现了 某种共识的链的接口
+// 这里是etcdraft
 type Chain struct {
 	configurator Configurator
 
@@ -386,8 +389,11 @@ func (c *Chain) Start() {
 }
 
 // Order submits normal type transactions for ordering.
+// 提交一个普通类型的交易将其排序
 func (c *Chain) Order(env *common.Envelope, configSeq uint64) error {
+	// 普通提案被接受指标 +1
 	c.Metrics.NormalProposalsReceived.Add(1)
+	// 提交交易参数分别是： 最后一个配置区块的序列号， 交易envelope , 通道的ID
 	return c.Submit(&orderer.SubmitRequest{LastValidationSeq: configSeq, Payload: env, Channel: c.channelID}, 0)
 }
 
@@ -399,13 +405,15 @@ func (c *Chain) Configure(env *common.Envelope, configSeq uint64) error {
 
 // WaitReady blocks when the chain:
 // - is catching up with other nodes using snapshot
-//
+// 是否使用快照catching up其他节点
 // In any other case, it returns right away.
+// 其他情况下直接返回
 func (c *Chain) WaitReady() error {
+	// 判断链的状态
 	if err := c.isRunning(); err != nil {
 		return err
 	}
-
+	// select 在不设置default 会阻塞
 	select {
 	case c.submitC <- nil:
 	case <-c.doneC:
@@ -527,6 +535,10 @@ func (c *Chain) Consensus(req *orderer.ConsensusRequest, sender uint64) error {
 // - the local run goroutine if this is leader
 // - the actual leader via the transport mechanism
 // The call fails if there's no leader elected yet.
+// 将传入的请求进行转发
+// - 如果当前是orderer的leader则在本地直接启动goroutine
+// - 实际的领导经手传递机制
+// 如果还没有选举出领导者，则调用失败
 func (c *Chain) Submit(req *orderer.SubmitRequest, sender uint64) error {
 	if err := c.isRunning(); err != nil {
 		c.Metrics.ProposalFailures.Add(1)
@@ -535,19 +547,22 @@ func (c *Chain) Submit(req *orderer.SubmitRequest, sender uint64) error {
 
 	leadC := make(chan uint64, 1)
 	select {
+	// 放到队列
 	case c.submitC <- &submit{req, leadC}:
-		lead := <-leadC
+		// TODO: leadC如何被赋值，
+		lead := <-leadC // 猜测从管道中等到数据，如果是Leader直接返回nil
+		// None是没有leader时候的占位符
 		if lead == raft.None {
 			c.Metrics.ProposalFailures.Add(1)
 			return errors.Errorf("no Raft leader")
 		}
-
+		// 如果leadId 不等于当前ID。就将请求发送到Leader节点
 		if lead != c.raftID {
 			if err := c.forwardToLeader(lead, req); err != nil {
 				return err
 			}
 		}
-
+	// 链停止的
 	case <-c.doneC:
 		c.Metrics.ProposalFailures.Add(1)
 		return errors.Errorf("chain is stopped")
@@ -558,30 +573,34 @@ func (c *Chain) Submit(req *orderer.SubmitRequest, sender uint64) error {
 
 func (c *Chain) forwardToLeader(lead uint64, req *orderer.SubmitRequest) error {
 	c.logger.Infof("Forwarding transaction to the leader %d", lead)
-	timer := time.NewTimer(c.opts.RPCTimeout)
+	timer := time.NewTimer(c.opts.RPCTimeout) // 新建一个定时器
 	defer timer.Stop()
 
 	sentChan := make(chan struct{})
 	atomicErr := &atomic.Value{}
-
+	// 出现错误时候记录错误信息
 	report := func(err error) {
 		if err != nil {
 			atomicErr.Store(err.Error())
 			c.Metrics.ProposalFailures.Add(1)
 		}
+		// 关闭发送通道
 		close(sentChan)
 	}
-
+	// 将提交的请求发送到 lead
 	c.rpc.SendSubmit(lead, req, report)
 
 	select {
+	// 不管对错请求已经发送完成
 	case <-sentChan:
+	// 链是停止的
 	case <-c.doneC:
 		return errors.Errorf("chain is stopped")
+	// 超时
 	case <-timer.C:
 		return errors.Errorf("timed out (%v) waiting on forwarding to %d", c.opts.RPCTimeout, lead)
 	}
-
+	// 如果发生错误
 	if atomicErr.Load() != nil {
 		return errors.Errorf(atomicErr.Load().(string))
 	}

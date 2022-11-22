@@ -432,6 +432,7 @@ func (r *Registrar) SystemChannel() *ChainSupport {
 // BroadcastChannelSupport returns the message channel header, whether the message is a config update
 // and the channel resources for a message or an error if the message is not a message which can
 // be processed directly (like CONFIG and ORDERER_TRANSACTION messages)
+// 返回消息通道的头部信息，是否是一个配置更新消息，通道资源对象(channelSupport)，如果消息不是一个能够直接被处理的消息例如：CONFIG,ORDERER_TX
 func (r *Registrar) BroadcastChannelSupport(msg *cb.Envelope) (*cb.ChannelHeader, bool, *ChainSupport, error) {
 	chdr, err := protoutil.ChannelHeader(msg)
 	if err != nil {

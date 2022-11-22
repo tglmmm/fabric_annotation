@@ -132,7 +132,9 @@ func (cs *ChainSupport) Validate(configEnv *cb.ConfigEnvelope) error {
 
 // ProposeConfigUpdate validates a config update using the underlying configtx.Validator
 // and the consensus.MetadataValidator.
+// 通过底层的configtx验证器和 共识包种的元数据验证器，验证配置更新
 func (cs *ChainSupport) ProposeConfigUpdate(configtx *cb.Envelope) (*cb.ConfigEnvelope, error) {
+	//
 	env, err := cs.ConfigtxValidator().ProposeConfigUpdate(configtx)
 	if err != nil {
 		return nil, err

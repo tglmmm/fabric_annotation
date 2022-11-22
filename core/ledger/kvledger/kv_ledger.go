@@ -530,6 +530,10 @@ func (l *kvLedger) GetBlockByNumber(blockNumber uint64) (*common.Block, error) {
 // GetBlocksIterator returns an iterator that starts from `startBlockNumber`(inclusive).
 // The iterator is a blocking iterator i.e., it blocks till the next block gets available in the ledger
 // ResultsIterator contains type BlockHolder
+
+// 返回一个迭代器， 从指定的开始区块号（包含这个开始区块），
+// 迭代器是阻塞的， 直到下一个区块在帐本种可用
+// Resultsiterrator 包含类型 BlockHolder
 func (l *kvLedger) GetBlocksIterator(startBlockNumber uint64) (commonledger.ResultsIterator, error) {
 	blkItr, err := l.blockStore.RetrieveBlocks(startBlockNumber)
 	if err != nil {

@@ -58,6 +58,7 @@ func NewStreamsByType() map[OperationType]map[uint64]*Stream {
 
 // OperationType denotes a type of operation that the RPC can perform
 // such as sending a transaction, or a consensus related message.
+// 标识一个GRPC操作类型，发送交易或者共识相关的消息
 type OperationType int
 
 const (
@@ -102,22 +103,23 @@ func (s *RPC) SendConsensus(destination uint64, msg *orderer.ConsensusRequest) e
 }
 
 // SendSubmit sends a SubmitRequest to the given destination node.
+// 发送提交请求到给定的目标节点
 func (s *RPC) SendSubmit(destination uint64, request *orderer.SubmitRequest, report func(error)) error {
 	if s.Logger.IsEnabledFor(zapcore.DebugLevel) {
 		defer s.submitSent(time.Now(), destination, request)
 	}
-
-	stream, err := s.getOrCreateStream(destination, SubmitOperation)
+	// 创建流，GRPC 提交操作类型类型为交易类型
+	stream, err := s.getOrCreateStream(destination, SubmitOperation) // 这里涉及到一系列顶层的GRPC操作
 	if err != nil {
 		return err
 	}
-
+	// 发送的内容
 	req := &orderer.StepRequest{
 		Payload: &orderer.StepRequest_SubmitRequest{
 			SubmitRequest: request,
 		},
 	}
-
+	//
 	unmapOnFailure := func(err error) {
 		if err != nil && err.Error() == io.EOF.Error() {
 			s.Logger.Infof("Un-mapping transaction stream to %d because encountered a stale stream", destination)
@@ -145,15 +147,20 @@ func (s *RPC) consensusSent(start time.Time, to uint64, msg *orderer.ConsensusRe
 }
 
 // getOrCreateStream obtains a Submit stream for the given destination node
+// 从给定的节点获取一个提交流
 func (s *RPC) getOrCreateStream(destination uint64, operationType OperationType) (*Stream, error) {
+	// 获取节点流首先知道目标节点和操作类型
 	stream := s.getStream(destination, operationType)
+	// 如果map中已经存在就直接返回
 	if stream != nil {
 		return stream, nil
 	}
+	// 获得远程上下文
 	stub, err := s.Comm.Remote(s.Channel, destination)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	// 创建流
 	stream, err = stub.NewStream(s.Timeout)
 	if err != nil {
 		return nil, err
@@ -165,6 +172,7 @@ func (s *RPC) getOrCreateStream(destination uint64, operationType OperationType)
 func (s *RPC) getStream(destination uint64, operationType OperationType) *Stream {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+	// 通过操作类型和，目标这两层映射嵌套找到对应的stream
 	return s.StreamsByType[operationType][destination]
 }
 

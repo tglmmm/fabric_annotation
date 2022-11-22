@@ -147,11 +147,20 @@ type ClientStream interface {
 //
 // If none of the above happen, a goroutine and a context will be leaked, and grpc
 // will not call the optionally-configured stats handler with a stats.End message.
+
+// 创建一个新的客户端侧的流，这通常由生成的代码调用，CTX是用来管理Stream 生命周期的
+// 要确保资源不会被泄露在stream返回时，必须执行以下操作
+// 1. 关闭 连接
+// 2. 取消上下文
+// 3. 调用 RecvMsg 直到非nil 的错误返回，一个 protobuf 生成的客户端流，对于实例可能使用 helper的CloseAndRecv，
+// 4. 接收一个非nil ，不是 io.EOF的错误从sendMsg头部
 func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (ClientStream, error) {
 	// allow interceptor to see all applicable call options, which means those
 	// configured as defaults from dial option as well as per-call options
+	// 允许拦截器查看所有适用的调用选项，也就是说 配置作为默认的从dial 选项也是每次调用的选项
+	// 选项组合
 	opts = combine(cc.dopts.callOptions, opts)
-
+	//
 	if cc.dopts.streamInt != nil {
 		return cc.dopts.streamInt(ctx, desc, cc, method, newClientStream, opts...)
 	}

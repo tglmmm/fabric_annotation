@@ -81,10 +81,15 @@ type Consenter struct {
 
 // TargetChannel extracts the channel from the given proto.Message.
 // Returns an empty string on failure.
+
+// 在消息中提取channel,如果遇到错误则返回空字符串
 func (c *Consenter) TargetChannel(message proto.Message) string {
+	// 首先判断消息类型
 	switch req := message.(type) {
+	// 共识请求类型
 	case *orderer.ConsensusRequest:
 		return req.Channel
+		// 普通交易请求
 	case *orderer.SubmitRequest:
 		return req.Channel
 	default:

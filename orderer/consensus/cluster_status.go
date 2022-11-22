@@ -15,6 +15,7 @@ import "github.com/hyperledger/fabric/orderer/common/types"
 //
 // Not all chains must implement this, in particular non-cluster-type (solo, kafka) are
 // assigned a StaticStatusReporter at construction time.
+
 type StatusReporter interface {
 	// StatusReport provides the cluster relation and status.
 	// See:  channelparticipation.ChannelInfo for more details.
@@ -22,6 +23,7 @@ type StatusReporter interface {
 }
 
 // StaticStatusReporter is intended for chains that do not implement the StatusReporter interface.
+//
 type StaticStatusReporter struct {
 	ConsensusRelation types.ConsensusRelation
 	Status            types.Status

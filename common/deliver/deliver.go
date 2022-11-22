@@ -92,17 +92,22 @@ func (inspector InspectorFunc) Inspect(ctx context.Context, p proto.Message) err
 }
 
 // Handler handles server requests.
+// 处理服务器请求
 type Handler struct {
+	// 过期检查函数
 	ExpirationCheckFunc func(identityBytes []byte) time.Time
-	ChainManager        ChainManager
-	TimeWindow          time.Duration
-	BindingInspector    Inspector
-	Metrics             *Metrics
+	//
+	ChainManager ChainManager
+	TimeWindow   time.Duration
+	// 绑定检查
+	BindingInspector Inspector
+	Metrics          *Metrics
 }
 
 //go:generate counterfeiter -o mock/receiver.go -fake-name Receiver . Receiver
 
 // Receiver is used to receive enveloped seek requests.
+// 被用来接收 enveloped查找 请求
 type Receiver interface {
 	Recv() (*cb.Envelope, error)
 }
@@ -113,22 +118,29 @@ type Receiver interface {
 // responses.
 type ResponseSender interface {
 	// SendStatusResponse sends completion status to the client.
+	// 客户端发送完成状态
 	SendStatusResponse(status cb.Status) error
 	// SendBlockResponse sends the block and optionally private data to the client.
+	// 将块和可选的私有数据发送到客户端
 	SendBlockResponse(data *cb.Block, channelID string, chain Chain, signedData *protoutil.SignedData) error
 	// DataType returns the data type sent by the sender
+	// 返回sender数据类型
 	DataType() string
 }
 
 // Filtered is a marker interface that indicates a response sender
 // is configured to send filtered blocks
 // Note: this is replaced by "data_type" label. Keep it for now until we decide how to take care of compatibility issue.
+// 是一个标记接口，指出一个响应的发送者 被配置用来发送过滤的区块
+// 这被 data_type 替换，知道找到合适的解决兼容问题的方法
 type Filtered interface {
 	IsFiltered() bool
 }
 
 // Server is a polymorphic structure to support generalization of this handler
 // to be able to deliver different type of responses.
+// 支持此处理程序泛化的多态结构
+// 能够提供不同类型的响应
 type Server struct {
 	Receiver
 	PolicyChecker
@@ -136,6 +148,8 @@ type Server struct {
 }
 
 // ExtractChannelHeaderCertHash extracts the TLS cert hash from a channel header.
+// 从msg 提取TLS证书的 cert
+// 从通道头部信息解析这一字段
 func ExtractChannelHeaderCertHash(msg proto.Message) []byte {
 	chdr, isChannelHeader := msg.(*cb.ChannelHeader)
 	if !isChannelHeader || chdr == nil {
@@ -147,12 +161,14 @@ func ExtractChannelHeaderCertHash(msg proto.Message) []byte {
 // NewHandler creates an implementation of the Handler interface.
 func NewHandler(cm ChainManager, timeWindow time.Duration, mutualTLS bool, metrics *Metrics, expirationCheckDisabled bool) *Handler {
 	expirationCheck := crypto.ExpiresAt
+	// 过期检查被禁用
 	if expirationCheckDisabled {
 		expirationCheck = noExpiration
 	}
 	return &Handler{
-		ChainManager:        cm,
-		TimeWindow:          timeWindow,
+		ChainManager: cm,
+		TimeWindow:   timeWindow,
+		// 绑定检查
 		BindingInspector:    InspectorFunc(NewBindingInspector(mutualTLS, ExtractChannelHeaderCertHash)),
 		Metrics:             metrics,
 		ExpirationCheckFunc: expirationCheck,
@@ -160,9 +176,12 @@ func NewHandler(cm ChainManager, timeWindow time.Duration, mutualTLS bool, metri
 }
 
 // Handle receives incoming deliver requests.
+// 接收进来的 deliver请求
 func (h *Handler) Handle(ctx context.Context, srv *Server) error {
+	// 从ctx中获取远程peer节点地址
 	addr := util.ExtractRemoteAddress(ctx)
 	logger.Debugf("Starting new deliver loop for %s", addr)
+	// GRPC 流的 打开和 关闭，计数器+1
 	h.Metrics.StreamsOpened.Add(1)
 	defer h.Metrics.StreamsClosed.Add(1)
 	for {
@@ -202,14 +221,17 @@ func isFiltered(srv *Server) bool {
 	return false
 }
 
+// 服务端处理 deliver请求
 func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.Envelope) (status cb.Status, err error) {
+	// 解析peer地址
 	addr := util.ExtractRemoteAddress(ctx)
+	// 解析Envelope，得到通道ID，以及请求的seek信息
 	payload, chdr, shdr, err := h.parseEnvelope(ctx, envelope)
 	if err != nil {
 		logger.Warningf("error parsing envelope from %s: %s", addr, err)
 		return cb.Status_BAD_REQUEST, nil
 	}
-
+	// 从ChainManager获取链对象
 	chain := h.ChainManager.GetChain(chdr.ChannelId)
 	if chain == nil {
 		// Note, we log this at DEBUG because SDKs will poll waiting for channels to be created
@@ -223,6 +245,7 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 		"filtered", strconv.FormatBool(isFiltered(srv)),
 		"data_type", srv.DataType(),
 	}
+	// 已经接收的deliver请求的数量 +1
 	h.Metrics.RequestsReceived.With(labels...).Add(1)
 	defer func() {
 		labels := append(labels, "success", strconv.FormatBool(status == cb.Status_SUCCESS))
@@ -230,6 +253,7 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 	}()
 
 	seekInfo := &ab.SeekInfo{}
+	// seekInfo 查找区块的请求信息在payload中解析出来
 	if err = proto.Unmarshal(payload.Data, seekInfo); err != nil {
 		logger.Warningf("[channel: %s] Received a signed deliver request from %s with malformed seekInfo payload: %s", chdr.ChannelId, addr, err)
 		return cb.Status_BAD_REQUEST, nil
@@ -238,6 +262,7 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 	erroredChan := chain.Errored()
 	if seekInfo.ErrorResponse == ab.SeekInfo_BEST_EFFORT {
 		// In a 'best effort' delivery of blocks, we should ignore consenter errors
+		// 在 best effort 时候deliver区块时应该忽略 共识错误
 		// and continue to deliver blocks according to the client's request.
 		erroredChan = nil
 	}
@@ -247,36 +272,38 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 		return cb.Status_SERVICE_UNAVAILABLE, nil
 	default:
 	}
-
+	// 新建一个 Session Access control
 	accessControl, err := NewSessionAC(chain, envelope, srv.PolicyChecker, chdr.ChannelId, h.ExpirationCheckFunc)
 	if err != nil {
 		logger.Warningf("[channel: %s] failed to create access control object due to %s", chdr.ChannelId, err)
 		return cb.Status_BAD_REQUEST, nil
 	}
-
+	// 访问控制校验
 	if err := accessControl.Evaluate(); err != nil {
 		logger.Warningf("[channel: %s] Client %s is not authorized: %s", chdr.ChannelId, addr, err)
 		return cb.Status_FORBIDDEN, nil
 	}
-
+	// 不允许seek start 或者 stop是nil
 	if seekInfo.Start == nil || seekInfo.Stop == nil {
 		logger.Warningf("[channel: %s] Received seekInfo message from %s with missing start or stop %v, %v", chdr.ChannelId, addr, seekInfo.Start, seekInfo.Stop)
 		return cb.Status_BAD_REQUEST, nil
 	}
 
 	logger.Debugf("[channel: %s] Received seekInfo (%p) %v from %s", chdr.ChannelId, seekInfo, seekInfo, addr)
-
+	// 获取链账本reader迭代器
+	// num标识起始的区块号 , 这里只是确定迭代器的初始位置
 	cursor, number := chain.Reader().Iterator(seekInfo.Start)
 	defer cursor.Close()
 	var stopNum uint64
 	switch stop := seekInfo.Stop.Type.(type) {
-	case *ab.SeekPosition_Oldest:
+	case *ab.SeekPosition_Oldest: // stop是旧的区块
 		stopNum = number
-	case *ab.SeekPosition_Newest:
+	case *ab.SeekPosition_Newest: // stop是最新区块
 		// when seeking only the newest block (i.e. starting
 		// and stopping at newest), don't reevaluate the ledger
 		// height as this can lead to multiple blocks being
 		// sent when only one is expected
+		// 当仅仅查找一个新的区块时候不要重复读取账本高度那样会导致仅仅需要一个区块时候多个区块被发送（每次认为下一个是最新的，所以产生多个区块）
 		if proto.Equal(seekInfo.Start, seekInfo.Stop) {
 			stopNum = number
 			break
@@ -284,14 +311,18 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 		stopNum = chain.Reader().Height() - 1
 	case *ab.SeekPosition_Specified:
 		stopNum = stop.Specified.Number
+		// 如果 startNum > stopNum
 		if stopNum < number {
 			logger.Warningf("[channel: %s] Received invalid seekInfo message from %s: start number %d greater than stop number %d", chdr.ChannelId, addr, number, stopNum)
 			return cb.Status_BAD_REQUEST, nil
 		}
 	}
-
+	// 存在两种 查找区块的行为方式
+	// 第一种，如果区块还没有完成，请求会被阻塞知道完成
+	// 第二种 如果请求的区块大于当前最大区块则返回错误
 	for {
 		if seekInfo.Behavior == ab.SeekInfo_FAIL_IF_NOT_READY {
+			//
 			if number > chain.Reader().Height()-1 {
 				logger.Warningf("[channel: %s] Block %d not found, block number greater than chain length bounds", chdr.ChannelId, number)
 				return cb.Status_NOT_FOUND, nil
@@ -302,21 +333,26 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 		var status cb.Status
 
 		iterCh := make(chan struct{})
+		// 异步读取区块
 		go func() {
 			block, status = cursor.Next()
+			// 通道被关闭时候 select 会收到消息
 			close(iterCh)
 		}()
 
 		select {
 		case <-ctx.Done():
+			// 上下文被取消终止等待下一个区块
 			logger.Debugf("Context canceled, aborting wait for next block")
+			// 上下文已经完成在 区块被接收之前
 			return cb.Status_INTERNAL_SERVER_ERROR, errors.Wrapf(ctx.Err(), "context finished before block retrieved")
 		case <-erroredChan:
 			// TODO, today, the only user of the errorChan is the orderer consensus implementations.  If the peer ever reports
 			// this error, we will need to update this error message, possibly finding a way to signal what error text to return.
+			// 当下，errorChan的使用者是共识的一个实例， 如果Peer曾经报告过这个错误，我们将需要更新这个错误的信息，可能找到一个方法去表明那个错误需要返回
 			logger.Warningf("Aborting deliver for request because the backing consensus implementation indicates an error")
 			return cb.Status_SERVICE_UNAVAILABLE, nil
-		case <-iterCh:
+		case <-iterCh: // 如果迭代器读取完成，通道iterCh被关闭，并且返回
 			// Iterator has set the block and status vars
 		}
 
@@ -327,22 +363,22 @@ func (h *Handler) deliverBlocks(ctx context.Context, srv *Server, envelope *cb.E
 
 		// increment block number to support FAIL_IF_NOT_READY deliver behavior
 		number++
-
+		// 权限检查
 		if err := accessControl.Evaluate(); err != nil {
 			logger.Warningf("[channel: %s] Client authorization revoked for deliver request from %s: %s", chdr.ChannelId, addr, err)
 			return cb.Status_FORBIDDEN, nil
 		}
 
 		logger.Debugf("[channel: %s] Delivering block [%d] for (%p) for %s", chdr.ChannelId, block.Header.Number, seekInfo, addr)
-
+		// TODO: 签名数据的作用
 		signedData := &protoutil.SignedData{Data: envelope.Payload, Identity: shdr.Creator, Signature: envelope.Signature}
 		if err := srv.SendBlockResponse(block, chdr.ChannelId, chain, signedData); err != nil {
 			logger.Warningf("[channel: %s] Error sending to %s: %s", chdr.ChannelId, addr, err)
 			return cb.Status_INTERNAL_SERVER_ERROR, err
 		}
-
+		// 区块发送计数器 +1
 		h.Metrics.BlocksSent.With(labels...).Add(1)
-
+		// 如果停止区块等于当前迭代器区块，说明已经迭代完毕
 		if stopNum == block.Header.Number {
 			break
 		}
@@ -372,7 +408,7 @@ func (h *Handler) parseEnvelope(ctx context.Context, envelope *cb.Envelope) (*cb
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
+	// 校验头部
 	err = h.validateChannelHeader(ctx, chdr)
 	if err != nil {
 		return nil, nil, nil, err
@@ -386,15 +422,15 @@ func (h *Handler) validateChannelHeader(ctx context.Context, chdr *cb.ChannelHea
 		err := errors.New("channel header in envelope must contain timestamp")
 		return err
 	}
-
+	// 交易信封中的时间
 	envTime := time.Unix(chdr.GetTimestamp().Seconds, int64(chdr.GetTimestamp().Nanos)).UTC()
 	serverTime := time.Now()
-
+	// 当前服务器时间与信封中的时间大于设定的时间窗口，则会返回错误
 	if math.Abs(float64(serverTime.UnixNano()-envTime.UnixNano())) > float64(h.TimeWindow.Nanoseconds()) {
 		err := errors.Errorf("envelope timestamp %s is more than %s apart from current server time %s", envTime, h.TimeWindow, serverTime)
 		return err
 	}
-
+	// 检查TLS绑定
 	err := h.BindingInspector.Inspect(ctx, chdr)
 	if err != nil {
 		return err

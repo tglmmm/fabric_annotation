@@ -53,11 +53,15 @@ const (
 	// Idle indicates the ClientConn is idle.
 	Idle State = iota
 	// Connecting indicates the ClientConn is connecting.
+	// 正在连接
 	Connecting
 	// Ready indicates the ClientConn is ready for work.
+	// 准备好去工作
 	Ready
 	// TransientFailure indicates the ClientConn has seen a failure but expects to recover.
+	// 标识出现故障需要恢复
 	TransientFailure
 	// Shutdown indicates the ClientConn has started shutting down.
+	// 客户端连接已经开始关闭
 	Shutdown
 )

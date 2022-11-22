@@ -30,7 +30,8 @@ const (
 	URLBaseV1Channels      = URLBaseV1 + "channels"
 	FormDataConfigBlockKey = "config-block"
 
-	channelIDKey        = "channelID"
+	channelIDKey = "channelID"
+	// /participation/v1/channels/channelID
 	urlWithChannelIDKey = URLBaseV1Channels + "/{" + channelIDKey + "}"
 )
 
@@ -40,21 +41,27 @@ type ChannelManagement interface {
 	// ChannelList returns a slice of ChannelInfoShort containing all application channels (excluding the system
 	// channel), and ChannelInfoShort of the system channel (nil if does not exist).
 	// The URL fields are empty, and are to be completed by the caller.
+	// 返回一个应用通道的切片，如果系统通道不存在则为nil
+	// URL字段为空，被调用者完成
 	ChannelList() types.ChannelList
 
 	// ChannelInfo provides extended status information about a channel.
 	// The URL field is empty, and is to be completed by the caller.
+	// 提供 更加详细的通道信息
 	ChannelInfo(channelID string) (types.ChannelInfo, error)
 
 	// JoinChannel instructs the orderer to create a channel and join it with the provided config block.
 	// The URL field is empty, and is to be completed by the caller.
+	// 表明 Orderer创建通道，加入通道通过提供的配置区块
 	JoinChannel(channelID string, configBlock *cb.Block, isAppChannel bool) (types.ChannelInfo, error)
 
 	// RemoveChannel instructs the orderer to remove a channel.
+	// orderer删除通道
 	RemoveChannel(channelID string) error
 }
 
 // HTTPHandler handles all the HTTP requests to the channel participation API.
+// 处理所有对通道参与api的所有http请求
 type HTTPHandler struct {
 	logger    *flogging.FabricLogger
 	config    localconfig.ChannelParticipation
@@ -196,19 +203,25 @@ func (h *HTTPHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 // List all channels
 func (h *HTTPHandler) serveListAll(resp http.ResponseWriter, req *http.Request) {
+	// 磋商ContentType
 	_, err := negotiateContentType(req) // Only application/json responses for now
 	if err != nil {
 		h.sendResponseJsonError(resp, http.StatusNotAcceptable, err)
 		return
 	}
 	channelList := h.registrar.ChannelList()
+	// 系统通道
 	if channelList.SystemChannel != nil && channelList.SystemChannel.Name != "" {
+		// 拼接通道的URl , "/participation/v1/channels/{channelList.SystemChannel.Name}
 		channelList.SystemChannel.URL = path.Join(URLBaseV1Channels, channelList.SystemChannel.Name)
 	}
+	// 应用通道
 	for i, info := range channelList.Channels {
 		channelList.Channels[i].URL = path.Join(URLBaseV1Channels, info.Name)
 	}
+	// 设置http请求头部
 	resp.Header().Set("Cache-Control", "no-store")
+	// 返回所有的通道列表
 	h.sendResponseOK(resp, channelList)
 }
 
@@ -219,12 +232,12 @@ func (h *HTTPHandler) serveListOne(resp http.ResponseWriter, req *http.Request) 
 		h.sendResponseJsonError(resp, http.StatusNotAcceptable, err)
 		return
 	}
-
+	// 从请求中提取channelID，并且验证其合法性:[a-z][a-z0-9.-]*
 	channelID, err := h.extractChannelID(req, resp)
 	if err != nil {
 		return
 	}
-
+	// 获取指定channel的信息
 	infoFull, err := h.registrar.ChannelInfo(channelID)
 	if err != nil {
 		h.sendResponseJsonError(resp, http.StatusNotFound, err)
@@ -248,7 +261,7 @@ func (h *HTTPHandler) serveJoin(resp http.ResponseWriter, req *http.Request) {
 		h.sendResponseJsonError(resp, http.StatusNotAcceptable, err)
 		return
 	}
-
+	// 获取到 请求的content-type类型和字符编码等信息
 	_, params, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
 	if err != nil {
 		h.sendResponseJsonError(resp, http.StatusBadRequest, errors.Wrap(err, "cannot parse Mime media type"))
@@ -289,7 +302,7 @@ func (h *HTTPHandler) multipartFormDataBodyToBlock(params map[string]string, req
 		h.sendResponseJsonError(resp, http.StatusBadRequest, errors.Wrap(err, "cannot read form from request body"))
 		return nil
 	}
-
+	// 配置块文件的 表单名称
 	if _, exist := form.File[FormDataConfigBlockKey]; !exist {
 		h.sendResponseJsonError(resp, http.StatusBadRequest, errors.Errorf("form does not contains part key: %s", FormDataConfigBlockKey))
 		return nil
@@ -299,7 +312,7 @@ func (h *HTTPHandler) multipartFormDataBodyToBlock(params map[string]string, req
 		h.sendResponseJsonError(resp, http.StatusBadRequest, errors.New("form contains too many parts"))
 		return nil
 	}
-
+	// 表单中获取文件打开文件
 	fileHeader := form.File[FormDataConfigBlockKey][0]
 	file, err := fileHeader.Open()
 	if err != nil {
@@ -325,13 +338,14 @@ func (h *HTTPHandler) multipartFormDataBodyToBlock(params map[string]string, req
 }
 
 func (h *HTTPHandler) extractChannelID(req *http.Request, resp http.ResponseWriter) (string, error) {
+	// 从请求的参数获取到 channelIDKey
 	channelID, ok := mux.Vars(req)[channelIDKey]
 	if !ok {
 		err := errors.New("missing channel ID")
 		h.sendResponseJsonError(resp, http.StatusInternalServerError, err)
 		return "", err
 	}
-
+	// 验证ChannelID合法性
 	if err := configtx.ValidateChannelID(channelID); err != nil {
 		err = errors.WithMessage(err, "invalid channel ID")
 		h.sendResponseJsonError(resp, http.StatusBadRequest, err)
@@ -414,6 +428,7 @@ func (h *HTTPHandler) serveNotAllowed(resp http.ResponseWriter, req *http.Reques
 }
 
 func negotiateContentType(req *http.Request) (string, error) {
+	// 从Http请求头部获取
 	acceptReq := req.Header.Get("Accept")
 	if len(acceptReq) == 0 {
 		return "application/json", nil

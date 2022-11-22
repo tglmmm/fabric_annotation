@@ -60,6 +60,7 @@ type Streamer func(ctx context.Context, desc *StreamDesc, cc *ClientConn, method
 //
 // StreamClientInterceptor may return a custom ClientStream to intercept all I/O
 // operations. The returned error must be compatible with the status package.
+// 可以返回一个自定的客户端流来拦截所有的I/O操作，
 type StreamClientInterceptor func(ctx context.Context, desc *StreamDesc, cc *ClientConn, method string, streamer Streamer, opts ...CallOption) (ClientStream, error)
 
 // UnaryServerInfo consists of various information about a unary RPC on

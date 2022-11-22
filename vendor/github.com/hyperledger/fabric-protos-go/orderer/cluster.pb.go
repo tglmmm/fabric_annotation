@@ -173,6 +173,7 @@ func (*StepResponse) XXX_OneofWrappers() []interface{} {
 }
 
 // ConsensusRequest is a consensus specific message sent to a cluster member.
+// 是发送到集群成员的指定共识消息
 type ConsensusRequest struct {
 	Channel              string   `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
 	Payload              []byte   `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
@@ -229,6 +230,7 @@ func (m *ConsensusRequest) GetMetadata() []byte {
 }
 
 // SubmitRequest wraps a transaction to be sent for ordering.
+// 包装一个交易，为了发送到排序服务
 type SubmitRequest struct {
 	Channel string `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
 	// last_validation_seq denotes the last

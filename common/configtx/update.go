@@ -112,16 +112,17 @@ func verifyFullProposedConfig(writeSet, fullProposedConfig map[string]comparable
 
 // authorizeUpdate validates that all modified config has the corresponding modification policies satisfied by the signature set
 // it returns a map of the modified config
+// 验证所有的被修改的配置，签名集合是否满足相应的修改策略，他返回一个被修改的配置的map
 func (vi *ValidatorImpl) authorizeUpdate(configUpdateEnv *cb.ConfigUpdateEnvelope) (map[string]comparable, error) {
 	if configUpdateEnv == nil {
 		return nil, errors.Errorf("cannot process nil ConfigUpdateEnvelope")
 	}
-
+	// 解码
 	configUpdate, err := UnmarshalConfigUpdate(configUpdateEnv.ConfigUpdate)
 	if err != nil {
 		return nil, err
 	}
-
+	// 消息中的channelId 校验
 	if configUpdate.ChannelId != vi.channelID {
 		return nil, errors.Errorf("ConfigUpdate for channel '%s' but envelope for channel '%s'", configUpdate.ChannelId, vi.channelID)
 	}

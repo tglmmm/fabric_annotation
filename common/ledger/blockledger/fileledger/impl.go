@@ -76,6 +76,7 @@ func (fl *FileLedger) Iterator(startPosition *ab.SeekPosition) (blockledger.Iter
 		if err != nil {
 			logger.Panic(err)
 		}
+		// 最新区块号等于区块高度-1
 		newestBlockNumber := info.Height - 1
 		if info.BootstrappingSnapshotInfo != nil && newestBlockNumber == info.BootstrappingSnapshotInfo.LastBlockInSnapshot {
 			newestBlockNumber = info.Height
@@ -98,7 +99,7 @@ func (fl *FileLedger) Iterator(startPosition *ab.SeekPosition) (blockledger.Iter
 		logger.Warnw("Failed to initialize block iterator", "blockNum", startingBlockNumber, "error", err)
 		return &blockledger.NotFoundErrorIterator{}, 0
 	}
-
+	// startingBlockNumber: 0 , newest , specified , newCommit
 	return &fileLedgerIterator{ledger: fl, blockNumber: startingBlockNumber, commonIterator: iterator}, startingBlockNumber
 }
 

@@ -16,17 +16,23 @@ import (
 )
 
 // Consenter defines the backing ordering mechanism.
+// 定义后台的排序机制
 type Consenter interface {
 	// HandleChain should create and return a reference to a Chain for the given set of resources.
-	// It will only be invoked for a given chain once per process.  In general, errors will be treated
-	// as irrecoverable and cause system shutdown.  See the description of Chain for more details
+	// It will only be invoked for a given chain once per process.  In general, errors will be treated as irrecoverable and cause system shutdown.
+	// See the description of Chain for more details
 	// The second argument to HandleChain is a pointer to the metadata stored on the `ORDERER` slot of
 	// the last block committed to the ledger of this Chain. For a new chain, or one which is migrated,
 	// this metadata will be nil (or contain a zero-length Value), as there is no prior metadata to report.
+	// 应该对给定的资源集合创建和返回一个链的引用
+	// 对于给定的链每个流程将会被调用一次，通常错误是不可恢复的将会导致系统的关闭,更多细节查看 Chain
+	//HandleChain的第二个参数是一个指针存储在 ORDERER槽，在链账本的最后一个被提交的区块
+	// 对于一个新的链或者被迁移的链，这个元数据可能是nil,
 	HandleChain(support ConsenterSupport, metadata *cb.Metadata) (Chain, error)
 }
 
 // ClusterConsenter defines methods implemented by cluster-type consenters.
+// 定一的方法被 consenters（cluster-type）实现
 type ClusterConsenter interface {
 	// IsChannelMember inspects the join block and detects whether it implies that this orderer is a member of the
 	// channel. It returns true if the orderer is a member of the consenters set, and false if it is not. The method

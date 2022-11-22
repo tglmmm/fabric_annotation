@@ -45,7 +45,8 @@ type StandardChannelSupport interface {
 
 // StandardChannel implements the Processor interface for standard extant channels
 type StandardChannel struct {
-	support           StandardChannelSupport
+	support StandardChannelSupport
+	// 适用于普通消息和配置消息的规则
 	filters           *RuleSet // Rules applicable to both normal and config messages
 	maintenanceFilter Rule     // Rule applicable only to config messages
 }
@@ -97,18 +98,23 @@ func (s *StandardChannel) ClassifyMsg(chdr *cb.ChannelHeader) Classification {
 
 // ProcessNormalMsg will check the validity of a message based on the current configuration.  It returns the current
 // configuration sequence number and nil on success, or an error if the message is not valid
+// 针对于普通通道的普通消息加工
+// 将检查消息的有效性，基于当前的通道配置，这将返回当前配置区块的序列号
 func (s *StandardChannel) ProcessNormalMsg(env *cb.Envelope) (configSeq uint64, err error) {
+	// 从orderer 中获取配置信息
 	oc, ok := s.support.OrdererConfig()
 	if !ok {
 		logger.Panicf("Missing orderer config")
 	}
+	// 检查orderer是否允许共识类型的迁移
 	if oc.Capabilities().ConsensusTypeMigration() {
+		// 查看当前共识类型状态，如果不是正常状态，返回错误
 		if oc.ConsensusState() != orderer.ConsensusType_STATE_NORMAL {
 			return 0, errors.WithMessage(
 				ErrMaintenanceMode, "normal transactions are rejected")
 		}
 	}
-
+	// 获取 配置区块序列号
 	configSeq = s.support.Sequence()
 	err = s.filters.Apply(env)
 	return
@@ -117,11 +123,14 @@ func (s *StandardChannel) ProcessNormalMsg(env *cb.Envelope) (configSeq uint64, 
 // ProcessConfigUpdateMsg will attempt to apply the config impetus msg to the current configuration, and if successful
 // return the resulting config message and the configSeq the config was computed from.  If the config impetus message
 // is invalid, an error is returned.
+// 在普通的通道上应用 新的配置消息中的配置到当前配置
+// 如果成功返回配置的消息，并且返回配置的序列号，如果配置更新消息是无效的返回错误
 func (s *StandardChannel) ProcessConfigUpdateMsg(env *cb.Envelope) (config *cb.Envelope, configSeq uint64, err error) {
 	logger.Debugf("Processing config update message for existing channel %s", s.support.ChannelID())
 
 	// Call Sequence first.  If seq advances between proposal and acceptance, this is okay, and will cause reprocessing
 	// however, if Sequence is called last, then a success could be falsely attributed to a newer configSeq
+	// 先获取 seq
 	seq := s.support.Sequence()
 	err = s.filters.Apply(env)
 	if err != nil {

@@ -187,12 +187,14 @@ func SignOrPanic(signer identity.Signer, msg []byte) []byte {
 
 // IsConfigBlock validates whenever given block contains configuration
 // update transaction
+// 验证 给定的区块包含配置更新交易
 func IsConfigBlock(block *cb.Block) bool {
+	// 获取区块中的第一个交易
 	envelope, err := ExtractEnvelope(block, 0)
 	if err != nil {
 		return false
 	}
-
+	//
 	payload, err := UnmarshalPayload(envelope.Payload)
 	if err != nil {
 		return false
@@ -201,12 +203,12 @@ func IsConfigBlock(block *cb.Block) bool {
 	if payload.Header == nil {
 		return false
 	}
-
+	// 从交易头的通道头获取数据
 	hdr, err := UnmarshalChannelHeader(payload.Header.ChannelHeader)
 	if err != nil {
 		return false
 	}
-
+	//
 	return cb.HeaderType(hdr.Type) == cb.HeaderType_CONFIG || cb.HeaderType(hdr.Type) == cb.HeaderType_ORDERER_TRANSACTION
 }
 
@@ -249,8 +251,11 @@ func ChannelID(env *cb.Envelope) (string, error) {
 
 // EnvelopeToConfigUpdate is used to extract a ConfigUpdateEnvelope from an envelope of
 // type CONFIG_UPDATE
+// 从类型为CONFIG_UPDATE类型的消息中提取 ConfigUpdateEnvelope
 func EnvelopeToConfigUpdate(configtx *cb.Envelope) (*cb.ConfigUpdateEnvelope, error) {
+	//
 	configUpdateEnv := &cb.ConfigUpdateEnvelope{}
+	// 解码
 	_, err := UnmarshalEnvelopeOfType(configtx, cb.HeaderType_CONFIG_UPDATE, configUpdateEnv)
 	if err != nil {
 		return nil, err

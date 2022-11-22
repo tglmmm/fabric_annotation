@@ -31,6 +31,7 @@ type broadcastSupport struct {
 	*multichannel.Registrar
 }
 
+// 对交易的类型进行判断，返回交易的通道头部信息，是否为配置交易，ChannelSupport{针对不同消息进行加工，共识相关的方法}
 func (bs broadcastSupport) BroadcastChannelSupport(msg *cb.Envelope) (*cb.ChannelHeader, bool, broadcast.ChannelSupport, error) {
 	return bs.Registrar.BroadcastChannelSupport(msg)
 }

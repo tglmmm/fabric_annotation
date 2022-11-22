@@ -38,6 +38,7 @@ type ConnByCertMap map[string]*grpc.ClientConn
 
 // Lookup looks up a certificate and returns the connection that was mapped
 // to the certificate, and whether it was found or not
+// 通过证书查找并且返回一个连接，它是一个map，存在返回不存在就返回false
 func (cbc ConnByCertMap) Lookup(cert []byte) (*grpc.ClientConn, bool) {
 	conn, ok := cbc[string(cert)]
 	return conn, ok
@@ -63,6 +64,7 @@ type CertificateComparator func([]byte, []byte) bool
 
 // MemberMapping defines NetworkMembers by their ID
 // and enables to lookup stubs by a certificate
+// 定义网络成员通过他们的ID,并且通过lookup方法通过证书找到stub
 type MemberMapping struct {
 	id2stub       map[uint64]*Stub
 	SamePublicKey CertificateComparator
@@ -91,8 +93,10 @@ func (mp MemberMapping) ByID(ID uint64) *Stub {
 }
 
 // LookupByClientCert retrieves a Stub with the given client certificate
+// 检索一个Stub 通过给定的客户端证书
 func (mp MemberMapping) LookupByClientCert(cert []byte) *Stub {
 	for _, stub := range mp.id2stub {
+		// 证书对比
 		if mp.SamePublicKey(stub.ClientTLSCert, cert) {
 			return stub
 		}
@@ -143,6 +147,7 @@ func (dialer *PredicateDialer) UpdateRootCAs(serverRootCAs [][]byte) {
 
 // Dial creates a new gRPC connection that can only be established, if the remote node's
 // certificate chain satisfy verifyFunc
+// 创建一个GRPC连接，如果远程系欸但证书链满足验证函数
 func (dialer *PredicateDialer) Dial(address string, verifyFunc RemoteVerifier) (*grpc.ClientConn, error) {
 	dialer.lock.RLock()
 	clientConfigCopy := dialer.Config

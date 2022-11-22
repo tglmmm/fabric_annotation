@@ -159,7 +159,7 @@ func (b *Bundle) ValidateNew(nb Resources) error {
 
 // NewBundleFromEnvelope wraps the NewBundle function, extracting the needed
 // information from a full configtx
-// 提取所需要的信息从完整的configtx（配置交易）中
+// 提取所需要的信息从完整的（配置交易）中
 func NewBundleFromEnvelope(env *cb.Envelope, bccsp bccsp.BCCSP) (*Bundle, error) {
 	//
 	payload, err := protoutil.UnmarshalPayload(env.Payload)

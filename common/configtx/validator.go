@@ -80,6 +80,8 @@ func validateConfigID(configID string) error {
 //
 // note: this function is a copy of the same in core/tx/endorser/parser.go
 //
+
+// 验证channelID合法性
 func ValidateChannelID(channelID string) error {
 	re, _ := regexp.Compile(ChannelAllowedChars)
 	// Length
@@ -131,16 +133,18 @@ func NewValidatorImpl(channelID string, config *cb.Config, namespace string, pm 
 
 // ProposeConfigUpdate takes in an Envelope of type CONFIG_UPDATE and produces a
 // ConfigEnvelope to be used as the Envelope Payload Data of a CONFIG message
+// 接收到一个 CONFIG_UPDATE类型的envelope 将其加工程 ConfigEnvelope 用于CONFIG消息的有效Envelop payload data
 func (vi *ValidatorImpl) ProposeConfigUpdate(configtx *cb.Envelope) (*cb.ConfigEnvelope, error) {
 	return vi.proposeConfigUpdate(configtx)
 }
 
 func (vi *ValidatorImpl) proposeConfigUpdate(configtx *cb.Envelope) (*cb.ConfigEnvelope, error) {
+	// 解码configUpdateEnvelop
 	configUpdateEnv, err := protoutil.EnvelopeToConfigUpdate(configtx)
 	if err != nil {
 		return nil, errors.Errorf("error converting envelope to config update: %s", err)
 	}
-
+	//
 	configMap, err := vi.authorizeUpdate(configUpdateEnv)
 	if err != nil {
 		return nil, errors.Errorf("error authorizing update: %s", err)

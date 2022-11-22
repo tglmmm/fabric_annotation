@@ -31,6 +31,7 @@ type ChannelInfoShort struct {
 }
 
 // ConsensusRelation represents the relationship between the orderer and the channel's consensus cluster.
+// 标识排序服务和通道共识集群的关系
 type ConsensusRelation string
 
 const (
@@ -49,6 +50,7 @@ const (
 
 // Status represents the degree by which the orderer had caught up with the rest of the cluster after joining the
 // channel (either as a consenter or a follower).
+// 加入通道后 orderer排序节点赶上其他集群内的其他成员的程度
 type Status string
 
 const (
@@ -57,10 +59,13 @@ const (
 	StatusActive Status = "active"
 	// The orderer is catching up with the cluster by pulling blocks from other orderers,
 	// with block height <= the join-block number.
+	// 当前区块小于加入时候的区块， 一般发生在当前节点从集群中的其他节点拉取数据
 	StatusOnBoarding Status = "onboarding"
 	// The orderer is not storing any blocks for this channel.
+	// orderer不存储通道的任何区块数据
 	StatusInactive Status = "inactive"
 	// The last orderer operation against the channel failed.
+	//
 	StatusFailed Status = "failed"
 )
 

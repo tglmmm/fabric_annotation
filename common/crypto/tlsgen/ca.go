@@ -13,6 +13,8 @@ import (
 
 // CertKeyPair denotes a TLS certificate and corresponding key,
 // both PEM encoded
+
+// 表示 TLS 证书和相应的密钥，都用PEM编码
 type CertKeyPair struct {
 	// Cert is the certificate, PEM encoded
 	Cert []byte
@@ -25,6 +27,7 @@ type CertKeyPair struct {
 
 // CA defines a certificate authority that can generate
 // certificates signed by it
+// 定义一个证书颁发机构， 可以产生由他签名的证书
 type CA interface {
 	// CertBytes returns the certificate of the CA in PEM encoding
 	CertBytes() []byte
@@ -34,15 +37,18 @@ type CA interface {
 	// newCertKeyPair returns a certificate and private key pair and nil,
 	// or nil, error in case of failure
 	// The certificate is signed by the CA and is used for TLS client authentication
+	// 生成证书密钥对， 在错误发生时候返回nil,err ,这个证书被CA签名， 被用于 TLS客户端认证
 	NewClientCertKeyPair() (*CertKeyPair, error)
 
 	// NewServerCertKeyPair returns a CertKeyPair and nil,
 	// with a given custom SAN.
 	// The certificate is signed by the CA.
 	// Returns nil, error in case of failure
+	// 根据指定的Host生成服务端证书，并且被CA签名
 	NewServerCertKeyPair(hosts ...string) (*CertKeyPair, error)
 
 	// Signer returns a crypto.Signer that signs with the CA's private key.
+	// 返回签名对象， 使用CA的私钥进行签名
 	Signer() crypto.Signer
 }
 
@@ -60,6 +66,7 @@ func NewCA() (CA, error) {
 	return c, nil
 }
 
+// 根据根CA创建一个中间CA
 func (c *ca) NewIntermediateCA() (CA, error) {
 	intermediateCA := &ca{}
 	var err error

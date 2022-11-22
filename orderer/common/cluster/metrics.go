@@ -16,7 +16,7 @@ var (
 	EgressQueueLengthOpts = metrics.GaugeOpts{
 		Namespace:    "cluster",
 		Subsystem:    "comm",
-		Name:         "egress_queue_length",
+		Name:         "egress_queue_length", // 出口队列的当前长度
 		Help:         "Length of the egress queue.",
 		LabelNames:   []string{"host", "msg_type", "channel"},
 		StatsdFormat: "%{#fqname}.%{host}.%{msg_type}.%{channel}",
@@ -25,59 +25,65 @@ var (
 	EgressQueueCapacityOpts = metrics.GaugeOpts{
 		Namespace:    "cluster",
 		Subsystem:    "comm",
-		Name:         "egress_queue_capacity",
+		Name:         "egress_queue_capacity", // 出口队列的容量
 		Help:         "Capacity of the egress queue.",
 		LabelNames:   []string{"host", "msg_type", "channel"},
 		StatsdFormat: "%{#fqname}.%{host}.%{msg_type}.%{channel}",
 	}
 
 	EgressWorkersOpts = metrics.GaugeOpts{
-		Namespace:    "cluster",
-		Subsystem:    "comm",
-		Name:         "egress_queue_workers",
+		Namespace: "cluster",
+		Subsystem: "comm",
+		Name:      "egress_queue_workers",
+		// 出口队列的works数量
 		Help:         "Count of egress queue workers.",
 		LabelNames:   []string{"channel"},
 		StatsdFormat: "%{#fqname}.%{channel}",
 	}
 
 	IngressStreamsCountOpts = metrics.GaugeOpts{
-		Namespace:    "cluster",
-		Subsystem:    "comm",
-		Name:         "ingress_stream_count",
+		Namespace: "cluster",
+		Subsystem: "comm",
+		Name:      "ingress_stream_count",
+		// 来自其他节点流（入）的数量
 		Help:         "Count of streams from other nodes.",
 		StatsdFormat: "%{#fqname}",
 	}
 
 	EgressStreamsCountOpts = metrics.GaugeOpts{
-		Namespace:    "cluster",
-		Subsystem:    "comm",
-		Name:         "egress_stream_count",
+		Namespace: "cluster",
+		Subsystem: "comm",
+		Name:      "egress_stream_count",
+		// 出口到其他节点的流的数量
 		Help:         "Count of streams to other nodes.",
 		LabelNames:   []string{"channel"},
 		StatsdFormat: "%{#fqname}.%{channel}",
 	}
 
 	EgressTLSConnectionCountOpts = metrics.GaugeOpts{
-		Namespace:    "cluster",
-		Subsystem:    "comm",
-		Name:         "egress_tls_connection_count",
+		Namespace: "cluster",
+		Subsystem: "comm",
+		Name:      "egress_tls_connection_count",
+		// 出口到其他节点TLS连接数量
 		Help:         "Count of TLS connections to other nodes.",
 		StatsdFormat: "%{#fqname}",
 	}
 
 	MessageSendTimeOpts = metrics.HistogramOpts{
-		Namespace:    "cluster",
-		Subsystem:    "comm",
-		Name:         "msg_send_time",
+		Namespace: "cluster",
+		Subsystem: "comm",
+		Name:      "msg_send_time",
+		// 发送一条消息所需要的时间
 		Help:         "The time it takes to send a message in seconds.",
 		LabelNames:   []string{"host", "channel"},
 		StatsdFormat: "%{#fqname}.%{host}.%{channel}",
 	}
 
 	MessagesDroppedCountOpts = metrics.CounterOpts{
-		Namespace:    "cluster",
-		Subsystem:    "comm",
-		Name:         "msg_dropped_count",
+		Namespace: "cluster",
+		Subsystem: "comm",
+		Name:      "msg_dropped_count",
+		// 丢弃的消息数量
 		Help:         "Count of messages dropped.",
 		LabelNames:   []string{"host", "channel"},
 		StatsdFormat: "%{#fqname}.%{host}.%{channel}",
@@ -110,6 +116,8 @@ type MetricsProvider interface {
 //go:generate mockery -dir . -name MetricsProvider -case underscore -output ./mocks/
 
 // NewMetrics initializes new metrics for the cluster infrastructure.
+
+// 通过 options创建对应的指标对象
 func NewMetrics(provider MetricsProvider) *Metrics {
 	return &Metrics{
 		EgressQueueLength:        provider.NewGauge(EgressQueueLengthOpts),
@@ -128,7 +136,9 @@ func (m *Metrics) reportMessagesDropped(host, channel string) {
 }
 
 func (m *Metrics) reportQueueOccupancy(host string, msgType string, channel string, length, capacity int) {
+	// 出口队列长度
 	m.EgressQueueLength.With("host", host, "msg_type", msgType, "channel", channel).Set(float64(length))
+	// 出口队列容量
 	m.EgressQueueCapacity.With("host", host, "msg_type", msgType, "channel", channel).Set(float64(capacity))
 }
 

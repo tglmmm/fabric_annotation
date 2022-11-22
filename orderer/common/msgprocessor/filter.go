@@ -55,6 +55,7 @@ func NewRuleSet(rules []Rule) *RuleSet {
 }
 
 // Apply applies the rules given for this set in order, returning nil on valid or err on invalid
+// 应用按照这个集合给定的规则在order上，返回nil 或者错误
 func (rs *RuleSet) Apply(message *ab.Envelope) error {
 	for _, rule := range rs.rules {
 		err := rule.Apply(message)
