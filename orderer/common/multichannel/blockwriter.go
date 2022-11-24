@@ -64,22 +64,26 @@ func newBlockWriter(lastBlock *cb.Block, r *Registrar, support blockWriterSuppor
 }
 
 // CreateNextBlock creates a new block with the next block number, and the given contents.
+// 创建一个新的区块通过洗一个区块号和给定的消息切片
 func (bw *BlockWriter) CreateNextBlock(messages []*cb.Envelope) *cb.Block {
+	// 从上一个区块信息中获取到区块hash
 	previousBlockHash := protoutil.BlockHeaderHash(bw.lastBlock.Header)
-
+	// 交易数据
 	data := &cb.BlockData{
 		Data: make([][]byte, len(messages)),
 	}
 
 	var err error
 	for i, msg := range messages {
+		// 将切片中的每个交易编码
 		data.Data[i], err = proto.Marshal(msg)
 		if err != nil {
 			logger.Panicf("Could not marshal envelope: %s", err)
 		}
 	}
-
+	// 根据区块号和 前一个区块hash创建一个新的区块
 	block := protoutil.NewBlock(bw.lastBlock.Header.Number+1, previousBlockHash)
+	// 当前区块的hash计算
 	block.Header.DataHash = protoutil.BlockDataHash(data)
 	block.Data = data
 
@@ -165,12 +169,18 @@ func (bw *BlockWriter) WriteConfigBlock(block *cb.Block, encodedMetadataValue []
 // annotate the block with metadata and signatures, and write the block to the ledger
 // then release the lock.  This allows the calling thread to begin assembling the next block
 // before the commit phase is complete.
+
+// 应该被包含普通交易的的区块调用
+// 他将目标块设置为阻塞的下一个区块，并且在提交之前返回
+// 在返回之前，他获得提交锁，生成以个goroutine使用元数据和签名来标注区块，并且将区块写入到账本，释放锁
+// 这允许线程开始组装下一个块在提交完成之前
 func (bw *BlockWriter) WriteBlock(block *cb.Block, encodedMetadataValue []byte) {
-	bw.committingBlock.Lock()
+	bw.committingBlock.Lock() // 获得提交锁（互斥锁）
 	bw.lastBlock = block
 
 	go func() {
 		defer bw.committingBlock.Unlock()
+		// 提交区块
 		bw.commitBlock(encodedMetadataValue)
 	}()
 }
@@ -194,10 +204,14 @@ func (bw *BlockWriter) WriteBlockSync(block *cb.Block, encodedMetadataValue []by
 
 // commitBlock should only ever be invoked with the bw.committingBlock held
 // this ensures that the encoded config sequence numbers stay in sync
+// 应该只在持有 bw.committingBlock（提交锁）时候被调用，
+// 这确保了编码的配置序列号保持同步
 func (bw *BlockWriter) commitBlock(encodedMetadataValue []byte) {
+	// 元数据添加 LAST_CONFIG
 	bw.addLastConfig(bw.lastBlock)
+	// 元数据添加签名
 	bw.addBlockSignature(bw.lastBlock, encodedMetadataValue)
-
+	//
 	err := bw.support.Append(bw.lastBlock)
 	if err != nil {
 		logger.Panicf("[channel: %s] Could not append block: %s", bw.support.ChannelID(), err)
@@ -205,18 +219,23 @@ func (bw *BlockWriter) commitBlock(encodedMetadataValue []byte) {
 	logger.Debugf("[channel: %s] Wrote block [%d]", bw.support.ChannelID(), bw.lastBlock.GetHeader().Number)
 }
 
+// metadata solt 0 添加区块签名
 func (bw *BlockWriter) addBlockSignature(block *cb.Block, consenterMetadata []byte) {
+	// 先设置区块头
 	blockSignature := &cb.MetadataSignature{
+		// 参数是接口类型 identity.Serializer ， 这里是由support接口实例实现 Serializer
 		SignatureHeader: protoutil.MarshalOrPanic(protoutil.NewSignatureHeaderOrPanic(bw.support)),
 	}
-
+	//
 	blockSignatureValue := protoutil.MarshalOrPanic(&cb.OrdererBlockMetadata{
+		// 这里以 在GRPC protobuf中定义，需要编码的字段需要编码
 		LastConfig:        &cb.LastConfig{Index: bw.lastConfigBlockNum},
 		ConsenterMetadata: protoutil.MarshalOrPanic(&cb.Metadata{Value: consenterMetadata}),
 	})
 
 	blockSignature.Signature = protoutil.SignOrPanic(
 		bw.support,
+		// 连接规则：&cb.OrdererBlockMetadata + SignatureHeader + 当前区块头
 		util.ConcatenateBytes(blockSignatureValue, blockSignature.SignatureHeader, protoutil.BlockHeaderBytes(block.Header)),
 	)
 
@@ -229,16 +248,22 @@ func (bw *BlockWriter) addBlockSignature(block *cb.Block, consenterMetadata []by
 }
 
 func (bw *BlockWriter) addLastConfig(block *cb.Block) {
+	// 获取通道的配置序列号
 	configSeq := bw.support.Sequence()
+	// 如果获取到的配置序列号最新
+	// TODO: 没搞明白
 	if configSeq > bw.lastConfigSeq {
+		// 获取到
 		logger.Debugf("[channel: %s] Detected lastConfigSeq transitioning from %d to %d, setting lastConfigBlockNum from %d to %d", bw.support.ChannelID(), bw.lastConfigSeq, configSeq, bw.lastConfigBlockNum, block.Header.Number)
+		// 当前区块号作为最新的配置区块
 		bw.lastConfigBlockNum = block.Header.Number
+		// 更新配置序列号
 		bw.lastConfigSeq = configSeq
 	}
-
+	// 编码最后一个配置区块的索引号（也就是区块号）
 	lastConfigValue := protoutil.MarshalOrPanic(&cb.LastConfig{Index: bw.lastConfigBlockNum})
 	logger.Debugf("[channel: %s] About to write block, setting its LAST_CONFIG to %d", bw.support.ChannelID(), bw.lastConfigBlockNum)
-
+	// 区块元数据元数据添加 LAST_CONFIG它对应的插槽是 1
 	block.Metadata.Metadata[cb.BlockMetadataIndex_LAST_CONFIG] = protoutil.MarshalOrPanic(&cb.Metadata{
 		Value: lastConfigValue,
 	})

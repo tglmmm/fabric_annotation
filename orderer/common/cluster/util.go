@@ -643,6 +643,7 @@ func (bv *BlockValidationPolicyVerifier) VerifyBlockSignature(sd []*protoutil.Si
 //go:generate mockery -dir . -name BlockRetriever -case underscore -output ./mocks/
 
 // BlockRetriever retrieves blocks
+// 检索区块
 type BlockRetriever interface {
 	// Block returns a block with the given number,
 	// or nil if such a block doesn't exist.
@@ -650,6 +651,7 @@ type BlockRetriever interface {
 }
 
 // LastConfigBlock returns the last config block relative to the given block.
+// 通过给定的区块获取到配置区块
 func LastConfigBlock(block *common.Block, blockRetriever BlockRetriever) (*common.Block, error) {
 	if block == nil {
 		return nil, errors.New("nil block")
@@ -657,6 +659,7 @@ func LastConfigBlock(block *common.Block, blockRetriever BlockRetriever) (*commo
 	if blockRetriever == nil {
 		return nil, errors.New("nil blockRetriever")
 	}
+	// 从区块获取到配置区块的块号
 	lastConfigBlockNum, err := protoutil.GetLastConfigIndexFromBlock(block)
 	if err != nil {
 		return nil, err

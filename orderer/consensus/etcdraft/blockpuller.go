@@ -19,21 +19,29 @@ import (
 )
 
 // LedgerBlockPuller pulls blocks upon demand, or fetches them from the ledger
+// 根据需要拉取区块或者从账本中获取
 type LedgerBlockPuller struct {
+	// 拉取
 	BlockPuller
+	// 检索
 	BlockRetriever cluster.BlockRetriever
 	Height         func() uint64
 }
 
 func (lp *LedgerBlockPuller) PullBlock(seq uint64) *common.Block {
+	// 最后一个区块的块号
 	lastSeq := lp.Height() - 1
+	// 如果最后一个区块> 指定的区块
+	// 可能涉及（两种不同的获取方式旧的区块使用检索方式）
 	if lastSeq >= seq {
 		return lp.BlockRetriever.Block(seq)
 	}
+	// 新区块的获取方式
 	return lp.BlockPuller.PullBlock(seq)
 }
 
 // EndpointconfigFromSupport extracts TLS CA certificates and endpoints from the ConsenterSupport
+// 从 ConsenterSupport 提取TLS CA证书和端点
 func EndpointconfigFromSupport(support consensus.ConsenterSupport, bccsp bccsp.BCCSP) ([]cluster.EndpointCriteria, error) {
 	lastConfigBlock, err := lastConfigBlockFromSupport(support)
 	if err != nil {
@@ -46,12 +54,16 @@ func EndpointconfigFromSupport(support consensus.ConsenterSupport, bccsp bccsp.B
 	return endpointconf, nil
 }
 
+// 从support 获取最新的配置区块
 func lastConfigBlockFromSupport(support consensus.ConsenterSupport) (*common.Block, error) {
+	// 最后一个区块的块号
 	lastBlockSeq := support.Height() - 1
+	// 最后一个区块
 	lastBlock := support.Block(lastBlockSeq)
 	if lastBlock == nil {
 		return nil, errors.Errorf("unable to retrieve block [%d]", lastBlockSeq)
 	}
+	// 从最新的区块中获取配置的索引并且查找到配置区块
 	lastConfigBlock, err := cluster.LastConfigBlock(lastBlock, support)
 	if err != nil {
 		return nil, err

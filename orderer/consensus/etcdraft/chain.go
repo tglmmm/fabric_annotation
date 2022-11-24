@@ -81,6 +81,7 @@ type RPC interface {
 //go:generate counterfeiter -o mocks/mock_blockpuller.go . BlockPuller
 
 // BlockPuller is used to pull blocks from other OSN
+// 被用来拉取区块从其他的OSN
 type BlockPuller interface {
 	PullBlock(seq uint64) *common.Block
 	HeightsByEndpoints() (map[string]uint64, error)

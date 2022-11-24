@@ -15,6 +15,9 @@ import (
 
 // blockCreator holds number and hash of latest block
 // so that next block will be created based on it.
+
+// 保存最新区块的 区块号和hash
+// 下一个区块基于这些信息被创建
 type blockCreator struct {
 	hash   []byte
 	number uint64

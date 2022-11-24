@@ -27,7 +27,14 @@ func NewBlock(seqNum uint64, previousHash []byte) *cb.Block {
 	block.Data = &cb.BlockData{}
 
 	var metadataContents [][]byte
+	// 元数据内容
+	//	0: "SIGNATURES",
+	//	1: "LAST_CONFIG",
+	//	2: "TRANSACTIONS_FILTER",
+	//	3: "ORDERER",
+	//	4: "COMMIT_HASH",
 	for i := 0; i < len(cb.BlockMetadataIndex_name); i++ {
+		// 初始化元数据
 		metadataContents = append(metadataContents, []byte{})
 	}
 	block.Metadata = &cb.BlockMetadata{Metadata: metadataContents}
@@ -166,30 +173,37 @@ func GetConsenterMetadataFromBlock(block *cb.Block) (*cb.Metadata, error) {
 // GetLastConfigIndexFromBlock retrieves the index of the last config block as
 // encoded in the block metadata
 // 检索最后一个配置区块的索引，它被编码在块的元数据中
+// 这里从区块中解析出配置区块index主要有两种方式
 func GetLastConfigIndexFromBlock(block *cb.Block) (uint64, error) {
+	// 元数据签名部分，在元数据的 solt[0] 位置
 	m, err := GetMetadataFromBlock(block, cb.BlockMetadataIndex_SIGNATURES)
 	if err != nil {
 		return 0, errors.WithMessage(err, "failed to retrieve metadata")
 	}
 	// TODO FAB-15864 Remove this fallback when we can stop supporting upgrade from pre-1.4.1 orderer
 	if len(m.Value) == 0 {
+		// 从 solit[1] 获取 LAST_CONFIG值
 		m, err := GetMetadataFromBlock(block, cb.BlockMetadataIndex_LAST_CONFIG)
 		if err != nil {
 			return 0, errors.WithMessage(err, "failed to retrieve metadata")
 		}
 		lc := &cb.LastConfig{}
+		// 解析 LAST_CONFIG
 		err = proto.Unmarshal(m.Value, lc)
 		if err != nil {
 			return 0, errors.Wrap(err, "error unmarshalling LastConfig")
 		}
+		// 返回配置区块的索引
 		return lc.Index, nil
 	}
 
+	// 如果签metadata 名字段签名不是空
 	obm := &cb.OrdererBlockMetadata{}
 	err = proto.Unmarshal(m.Value, obm)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal orderer block metadata")
 	}
+	// 通过 元数据中的 签名字段解析出LastConfig
 	return obm.LastConfig.Index, nil
 }
 
